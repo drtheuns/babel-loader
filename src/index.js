@@ -21,7 +21,7 @@ if (/^6\./.test(babel.version)) {
 
 const { version } = require("../package.json");
 const cache = require("./cache");
-const transform = require("./transform");
+const defaultTransform = require("./transform");
 const injectCaller = require("./injectCaller");
 const schema = require("./schema");
 
@@ -37,6 +37,7 @@ function subscribe(subscriber, metadata, context) {
 
 module.exports = makeLoader();
 module.exports.custom = makeLoader;
+module.exports.transform = defaultTransform;
 
 function makeLoader(callback) {
   const overrides = callback ? callback(babel) : undefined;
@@ -150,6 +151,7 @@ async function loader(source, inputSourceMap, overrides) {
   delete programmaticOptions.cacheIdentifier;
   delete programmaticOptions.cacheCompression;
   delete programmaticOptions.metadataSubscribers;
+  delete programmaticOptions.transform;
 
   if (!babel.loadPartialConfig) {
     throw new Error(
@@ -185,10 +187,11 @@ async function loader(source, inputSourceMap, overrides) {
     }
 
     const {
+      transform = defaultTransform,
       cacheDirectory = null,
       cacheIdentifier = JSON.stringify({
         options,
-        "@babel/core": transform.version,
+        "@babel/core": transform.version ?? "",
         "@babel/loader": version,
       }),
       cacheCompression = true,

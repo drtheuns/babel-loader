@@ -22,6 +22,9 @@
     "customize": {
       "type": "string",
       "default": null
+    },
+    "transform": {
+      "instanceof": "Function"
     }
   },
   "additionalProperties": true

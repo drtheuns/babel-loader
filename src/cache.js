@@ -15,7 +15,6 @@ const crypto = require("crypto");
 const findCacheDir = require("find-cache-dir");
 const { promisify } = require("util");
 
-const transform = require("./transform");
 // Lazily instantiated when needed
 let defaultCacheDirectory = null;
 
@@ -26,11 +25,26 @@ const gzip = promisify(zlib.gzip);
 const makeDir = require("make-dir");
 
 /**
+ * @typedef {import('@babel/core').TransformOptions} TransformOptions
+ * @typedef {import('@babel/core').BabelFileResult} BabelFileResult
+ *
+ * @typedef {{function(source: string, options: TransformOptions) => Promise<BabelFileResult>}} TransformFn
+ *
+ * @typedef {Object} CacheParameters
+ * @property {string} cacheDirectory Directory to store cached files.
+ * @property {string} cacheIdentifier Unique identifier to bust cache.
+ * @property {boolean} cacheCompression Whether cached files should be compressed.
+ * @property {string} source Original contents of the file to be cached.
+ * @property {TransformOptions} options Options to be given to the transform function.
+ * @property {TransformFn} transform
+ */
+
+/**
  * Read the contents from the compressed file.
  *
  * @async
- * @params {String} filename
- * @params {Boolean} compress
+ * @param {string} filename
+ * @param {boolean} compress
  */
 const read = async function (filename, compress) {
   const data = await readFile(filename + (compress ? ".gz" : ""));
@@ -43,9 +57,9 @@ const read = async function (filename, compress) {
  * Write contents into a compressed file.
  *
  * @async
- * @params {String} filename
- * @params {Boolean} compress
- * @params {String} result
+ * @param {string} filename
+ * @param {boolean} compress
+ * @param {BabelFileResult} result
  */
 const write = async function (filename, compress, result) {
   const content = JSON.stringify(result);
@@ -57,10 +71,10 @@ const write = async function (filename, compress, result) {
 /**
  * Build the filename for the cached file
  *
- * @params {String} source  File source code
- * @params {Object} options Options used
+ * @param {string} source  File source code
+ * @param {Object} options Options used
  *
- * @return {String}
+ * @return {string}
  */
 const filename = function (source, identifier, options) {
   const hash = crypto.createHash("md4");
@@ -75,8 +89,8 @@ const filename = function (source, identifier, options) {
 /**
  * Handle the cache
  *
- * @params {String} directory
- * @params {Object} params
+ * @param {string} directory
+ * @param {CacheParameters} params
  */
 const handleCache = async function (directory, params) {
   const {
@@ -85,6 +99,7 @@ const handleCache = async function (directory, params) {
     cacheIdentifier,
     cacheDirectory,
     cacheCompression,
+    transform,
   } = params;
 
   const file = path.join(directory, filename(source, cacheIdentifier, options));
@@ -131,12 +146,7 @@ const handleCache = async function (directory, params) {
  * Retrieve file from cache, or create a new one for future reads
  *
  * @async
- * @param  {Object}   params
- * @param  {String}   params.cacheDirectory   Directory to store cached files
- * @param  {String}   params.cacheIdentifier  Unique identifier to bust cache
- * @param  {Boolean}  params.cacheCompression Whether compressing cached files
- * @param  {String}   params.source   Original contents of the file to be cached
- * @param  {Object}   params.options  Options to be given to the transform fn
+ * @param {CacheParameters} params
  *
  * @example
  *
@@ -145,13 +155,13 @@ const handleCache = async function (directory, params) {
  *     cacheIdentifier: 'babel-loader-cachefile',
  *     cacheCompression: false,
  *     source: *source code from file*,
+ *     transform: require('babel-loader').transform,
  *     options: {
  *       experimental: true,
  *       runtime: true
  *     },
  *   });
  */
-
 module.exports = async function (params) {
   let directory;
 

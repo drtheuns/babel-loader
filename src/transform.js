@@ -4,6 +4,11 @@ const LoaderError = require("./Error");
 
 const transform = promisify(babel.transform);
 
+/**
+ * @param {String} source
+ * @param {import('@babel/core').TransformOptions} options
+ * @return {import('@babel/core').BabelFileResult}
+ */
 module.exports = async function (source, options) {
   let result;
   try {
